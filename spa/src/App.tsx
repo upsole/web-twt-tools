@@ -22,13 +22,13 @@ function App() {
   return (
     <div className="flex flex-col h-screen">
       <main className="mx-auto mt-8">
-        <button className="border border-black rounded-lg p-2"
-          onClick={() => ok.mutate()}>healthcheck</button>
-        {healthcheck && (healthcheck === "up" ? (
-          <h3> Server is running! </h3>
-        ) : (
-          <h3> Server is down! </h3>
-        ))}
+        {/* <button className="border border-black rounded-lg p-2" */}
+        {/*   onClick={() => ok.mutate()}>healthcheck</button> */}
+        {/* {healthcheck && (healthcheck === "up" ? ( */}
+        {/*   <h3> Server is running! </h3> */}
+        {/* ) : ( */}
+        {/*   <h3> Server is down! </h3> */}
+        {/* ))} */}
         <Form />
       </main>
     </div>
