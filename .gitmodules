@@ -1,0 +1,3 @@
+[submodule "fastapi_twt_tools"]
+	path = fastapi_twt_tools
+	url = git@github.com:upsole/fastapi_twt_tools
