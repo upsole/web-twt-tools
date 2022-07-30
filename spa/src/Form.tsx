@@ -7,8 +7,9 @@ const UrlForm: React.FC = () => {
       onSubmit={(values) => console.log(values)}
     >
       {({ values, handleChange }) => (
-        <Form>
+        <Form className="">
           <input
+            className="p-4 m-8 w-[40em] font-semibold text-black rounded shadow shadow-black focus:outline-none focus:outline-purple-600/90 "
             type="text"
             placeholder="Url of user..."
             name="url"
