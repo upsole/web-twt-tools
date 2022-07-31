@@ -1,45 +1,83 @@
 import { Form, Formik } from "formik";
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import {
+  useMutation,
+  UseMutateFunction,
+  UseMutationResult,
+} from "@tanstack/react-query";
 import { getUserArchive, getThreadPDF } from "./data";
 import { tweetUrlParser, userUrlParser } from "./lib";
+import { AxiosResponse, AxiosError } from "axios";
 
-const UrlForm: React.FC = () => {
+type EnumEndpoint = "user-archive" | "thread";
+
+type GenericFormParams = {
+  button: string;
+  placeholder: string;
+  parser: any;
+  mutation: UseMutationResult<AxiosResponse, AxiosError, string>;
+};
+
+interface GenericForm {
+  endpoint?: EnumEndpoint;
+}
+
+const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
   const [loading, setLoading] = useState<boolean>();
-  const userArchiveMutation = useMutation(
-    (url: string) => getUserArchive(url),
-    {
-      onSuccess: (res) => console.log(res),
-    }
-  );
-
-  const threadPDFMutation = useMutation((url: string) => getThreadPDF(url), {
-    onSuccess: ({ data }) => {
-      const downloadUrl = window.URL.createObjectURL(
-        new File([data], "file.pdf", { type: "application/pdf" })
-      );
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.setAttribute("download", "file.pdf"); //any other extension
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setLoading(false);
-    },
-  });
+  let mutation: any;
+  let formParams: GenericFormParams;
+  console.log("Rendered with param: ", endpoint);
+  if (endpoint === "thread") {
+    const threadPDFMutation = useMutation<AxiosResponse, AxiosError, string>(
+      (url: string) => getThreadPDF(url),
+      {
+        onSuccess: ({ data }) => {
+          const downloadUrl = window.URL.createObjectURL(
+            new File([data], "file.pdf", { type: "application/pdf" })
+          );
+          const link = document.createElement("a");
+          link.href = downloadUrl;
+          link.setAttribute("download", "file.pdf"); //any other extension
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setLoading(false);
+        },
+      }
+    );
+    formParams = {
+      button: "Get Thread",
+      placeholder: "last tweet in thread",
+      parser: tweetUrlParser,
+      mutation: threadPDFMutation,
+    };
+    // mutation = threadPDFMutation;
+  } else if (endpoint === "user-archive") {
+    const userArchiveMutation = useMutation<AxiosResponse, AxiosError, string>(
+      (url: string) => getUserArchive(url),
+      {
+        onSuccess: (res) => console.log(res),
+      }
+    );
+    formParams = {
+      button: "Get Archive",
+      placeholder: "user archive",
+      parser: userUrlParser,
+      mutation: userArchiveMutation,
+    };
+  } else {
+    mutation = () => {
+      return;
+    };
+  }
 
   return (
     <Formik
       initialValues={{ url: "" }}
       onSubmit={(values, actions) => {
-        // get user archive
-        // let parsedUrl = userUrlParser(values.url);
-        // userArchiveMutation.mutate(parsedUrl);
-
-        // get thread pdf
-        let parsedUrl = tweetUrlParser(values.url);
+        let parsedUrl = formParams.parser(values.url);
         setLoading(true);
-        threadPDFMutation.mutate(parsedUrl);
+        formParams.mutation.mutate(parsedUrl);
         actions.resetForm();
       }}
     >
@@ -49,7 +87,7 @@ const UrlForm: React.FC = () => {
             <input
               className="p-4  w-[40em] font-semibold text-black rounded rounded-r-none shadow shadow-black focus:outline-none focus:outline-purple-600/90 "
               type="text"
-              placeholder="Url of user..."
+              placeholder={`Url of ${formParams.placeholder}...`}
               name="url"
               value={values.url}
               onChange={handleChange}
@@ -58,7 +96,7 @@ const UrlForm: React.FC = () => {
               className={`bg-purple-600 p-4 rounded rounded-l-none shadow-inner font-semibold hover:bg-purple-400`}
               type="submit"
             >
-              {loading ? "Loading" : "Submit"}
+              {loading ? "Loading" : `${formParams.button}`}
             </button>
           </div>
         </Form>
@@ -67,4 +105,29 @@ const UrlForm: React.FC = () => {
   );
 };
 
-export default UrlForm;
+const FormSelector: React.FC = () => {
+  const [endpoint, setEndPoint] = useState<EnumEndpoint>("thread");
+  return (
+    <div>
+      <div className="flex justify-between w-1/2 m-auto">
+        <button
+          onClick={() => setEndPoint("thread")}
+          className={`p-2 rounded ${endpoint === "thread" ? "bg-orange-500" : "bg-orange-600/80"
+            }`}
+        >
+          Thread
+        </button>
+        <button
+          onClick={() => setEndPoint("user-archive")}
+          className={`p-2 rounded ${endpoint === "user-archive" ? "bg-orange-500" : "bg-orange-600/80"
+            }`}
+        >
+          Archive
+        </button>
+      </div>
+      <GenericForm endpoint={endpoint} />
+    </div>
+  );
+};
+
+export default FormSelector;
