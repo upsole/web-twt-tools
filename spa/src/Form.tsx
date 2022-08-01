@@ -6,13 +6,14 @@ import { tweetUrlParser, userUrlParser } from "./lib";
 import { AxiosResponse, AxiosError } from "axios";
 
 type EnumEndpoint = "user-archive" | "thread";
+type MutateArgs = { url: string; limit?: number };
 
 type GenericFormParams = {
   type: EnumEndpoint;
   button: string;
   placeholder: string;
   parser: any;
-  mutation: UseMutationResult<AxiosResponse, AxiosError, string>;
+  mutation: UseMutationResult<AxiosResponse, AxiosError, MutateArgs>;
 };
 
 interface GenericForm {
@@ -21,25 +22,36 @@ interface GenericForm {
 
 const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
   const [loading, setLoading] = useState<boolean>();
+  const [serverError, setServerError] = useState("");
   let formParams: GenericFormParams;
   if (endpoint === "thread") {
-    const threadPDFMutation = useMutation<AxiosResponse, AxiosError, string>(
-      (url: string) => getThreadPDF(url),
-      {
-        onSuccess: ({ data }) => {
-          const downloadUrl = window.URL.createObjectURL(
-            new File([data], "file.pdf", { type: "application/pdf" })
-          );
-          const link = document.createElement("a");
-          link.href = downloadUrl;
-          link.setAttribute("download", "file.pdf"); //any other extension
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          setLoading(false);
-        },
-      }
-    );
+    const threadPDFMutation = useMutation<
+      AxiosResponse,
+      AxiosError,
+      MutateArgs
+    >((params: MutateArgs) => getThreadPDF(params.url), {
+      onSuccess: ({ data }) => {
+        const downloadUrl = window.URL.createObjectURL(
+          new File([data], "file.pdf", { type: "application/pdf" })
+        );
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.setAttribute("download", "file.pdf"); //any other extension
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setLoading(false);
+      },
+      onError: (err) => {
+        setServerError(
+          err.response?.status! === 400
+            ? "Invalid Tweet ID"
+            : err.response?.statusText!
+        );
+        setLoading(false);
+        setTimeout(() => setServerError(""), 3000);
+      },
+    });
     formParams = {
       type: endpoint,
       button: "Get Thread",
@@ -48,29 +60,30 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
       mutation: threadPDFMutation,
     };
   } else if (endpoint === "user-archive") {
-    const userArchiveMutation = useMutation<AxiosResponse, AxiosError, string>(
-      (url: string) => getUserArchive(url),
-      {
-        // onSuccess: ({ data }) => {
-        //   let myWindow = window.open("", "_blank", "resizable=yes");
-        //   myWindow!.document.write(data);
-        //   setLoading(false);
-        // },
-        onSuccess: ({ data }) => {
-          const downloadUrl = window.URL.createObjectURL(
-            new File([data], "archive.html", { type: "text/html" })
-          );
-          const link = document.createElement("a");
-          link.href = downloadUrl;
-          link.target = '_blank';
-          // link.setAttribute("download", "file.pdf"); //any other extension
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          setLoading(false);
-        },
-      }
-    );
+    const userArchiveMutation = useMutation<
+      AxiosResponse,
+      AxiosError,
+      MutateArgs
+    >((params: MutateArgs) => getUserArchive(params), {
+      onSuccess: ({ data }) => {
+        const downloadUrl = window.URL.createObjectURL(
+          new File([data], "archive.html", { type: "text/html" })
+        );
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setLoading(false);
+      },
+      onError: (err) => {
+        //@ts-ignore
+        setServerError(err.response?.data.detail as string);
+        setLoading(false);
+        setTimeout(() => setServerError(""), 3000);
+      },
+    });
     formParams = {
       type: endpoint,
       button: "Get Archive",
@@ -84,46 +97,96 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
     return <h3> Oops, formParams not set </h3>;
   }
 
-  const SubmitBtn: React.FC<{kind: EnumEndpoint, text: string}> = ({kind, text}) => {
-    let kindStyle: string = "";
-    if (kind === "user-archive") {
-      kindStyle = "bg-orange-500"
-    } else if (kind === "thread") {
-      kindStyle = "bg-purple-600"
-    } 
+  const SubmitBtn: React.FC<{
+    text: string;
+    disabled?: boolean;
+  }> = ({ text, disabled }) => {
     return (
       <button
-        className={`${kindStyle} p-4 rounded rounded-l-none shadow-inner font-semibold hover:bg-purple-400`}
+        className={`${disabled ? "bg-orange-400" : "bg-purple-600 hover:bg-purple-400" } p-4 rounded rounded-l-none font-semibold grow-0 flex items-center active:shadow-inner active:shadow-gray-800 active:bg-purple-600`}
         type="submit"
+        disabled={disabled}
       >
-        {loading ? "Loading" : `${text}`}
+        {disabled && (
+          <svg
+            className="animate-spin h-5 w-5 text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+        )}
+        <p className="mx-4">{loading ? "Loading" : `${text}`}</p>
       </button>
     );
   };
 
   return (
     <Formik
-      initialValues={{ url: "" }}
+      initialValues={{ url: "", limit: 10 }}
       onSubmit={(values, actions) => {
-        let parsedUrl = formParams.parser(values.url);
+        if (!values.url) {
+          setServerError("Please provide a valid URL");
+          setTimeout(() => setServerError(""), 3000);
+          return;
+        }
+        let parsedValues = {
+          url: formParams.parser(values.url),
+          limit: values.limit,
+        };
         setLoading(true);
-        formParams.mutation.mutate(parsedUrl);
+        setServerError("");
+        formParams.mutation.mutate(parsedValues);
+        // console.log(parsedValues);
         actions.resetForm();
       }}
     >
       {({ values, handleChange }) => (
         <Form className="">
-          <div className="m-8 flex">
+          <div className="m-8 flex justify-center">
             <input
-              className="p-4  w-[40em] font-semibold text-black rounded rounded-r-none shadow shadow-black focus:outline-none focus:outline-purple-600/90 "
+              className="p-4 font-semibold text-black rounded rounded-r-none shadow shadow-black focus:outline-none focus:outline-purple-600/90 md:grow"
               type="text"
               placeholder={`Url of ${formParams.placeholder}...`}
               name="url"
               value={values.url}
               onChange={handleChange}
             />
-              <SubmitBtn kind={endpoint} text={formParams.button}/>
+            {formParams.type === "user-archive" && (
+              <input
+                className={`p-4 text-black text-xs font-semibold text-opacity-70 border-l border-l-black shadow-black focus:outline-none grow-0  md:max-w-[8vw]  focus:outline-purple-600/90 focus:border-none`}
+                type="number"
+                min={0}
+                max={200}
+                name="limit"
+                placeholder="Limit (defaults to 10 posts)"
+                value={values.limit}
+                onChange={handleChange}
+              />
+            )}
+            <SubmitBtn
+              text={formParams.button}
+              disabled={loading}
+            />
           </div>
+          {serverError && (
+            <div className="bg-red-400 p-4 mx-44 my-4 rounded font-semibold text-center">
+              {serverError}
+            </div>
+          )}
         </Form>
       )}
     </Formik>
@@ -133,7 +196,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
 const FormSelector: React.FC = () => {
   const [endpoint, setEndPoint] = useState<EnumEndpoint>("thread");
   return (
-    <div>
+    <div className="m-auto p-4 md:w-[60vw] border-transparent rounded shadow-lg shadow-gray-900 ">
       <div className="flex justify-between w-1/2 m-auto">
         <button
           onClick={() => setEndPoint("thread")}
@@ -151,6 +214,7 @@ const FormSelector: React.FC = () => {
         </button>
       </div>
       <GenericForm endpoint={endpoint} />
+      <div className="text-center font-bold">Description here</div>
     </div>
   );
 };

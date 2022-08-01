@@ -10,13 +10,11 @@ export const getOk = async () => {
 };
 
 export const getThreadPDF = async (url: string) => {
-  const res = await instance.get(`/thread?id=${url}`, {responseType: 'blob'})
-  // const res = await axios({ method: 'GET', responseType: "blob", url: `${api_url}/thread?id=${url}` })
+  const res = await instance.get(`/thread/${url}`, {responseType: 'blob'})
   return res;
 }
 
-export const getUserArchive = async (url: string, limit = 10) => {
+export const getUserArchive = async ({url, limit = 10}: {url: string, limit?: number}) => {
   const res = await instance.get(`/user/archive?id=${url}&limit=${limit}`, {responseType: 'text'})
   return res;
 }
-
