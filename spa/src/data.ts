@@ -16,7 +16,7 @@ export const getThreadPDF = async (url: string) => {
 }
 
 export const getUserArchive = async (url: string, limit = 10) => {
-  const res = await instance.post(`/user/archive?id=${url}&limit=${limit}`)
+  const res = await instance.get(`/user/archive?id=${url}&limit=${limit}`, {responseType: 'text'})
   return res;
 }
 

@@ -1,10 +1,6 @@
 import { Form, Formik } from "formik";
 import { useState } from "react";
-import {
-  useMutation,
-  UseMutateFunction,
-  UseMutationResult,
-} from "@tanstack/react-query";
+import { useMutation, UseMutationResult } from "@tanstack/react-query";
 import { getUserArchive, getThreadPDF } from "./data";
 import { tweetUrlParser, userUrlParser } from "./lib";
 import { AxiosResponse, AxiosError } from "axios";
@@ -12,6 +8,7 @@ import { AxiosResponse, AxiosError } from "axios";
 type EnumEndpoint = "user-archive" | "thread";
 
 type GenericFormParams = {
+  type: EnumEndpoint;
   button: string;
   placeholder: string;
   parser: any;
@@ -19,14 +16,12 @@ type GenericFormParams = {
 };
 
 interface GenericForm {
-  endpoint?: EnumEndpoint;
+  endpoint: EnumEndpoint;
 }
 
 const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
   const [loading, setLoading] = useState<boolean>();
-  let mutation: any;
   let formParams: GenericFormParams;
-  console.log("Rendered with param: ", endpoint);
   if (endpoint === "thread") {
     const threadPDFMutation = useMutation<AxiosResponse, AxiosError, string>(
       (url: string) => getThreadPDF(url),
@@ -46,30 +41,65 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
       }
     );
     formParams = {
+      type: endpoint,
       button: "Get Thread",
       placeholder: "last tweet in thread",
       parser: tweetUrlParser,
       mutation: threadPDFMutation,
     };
-    // mutation = threadPDFMutation;
   } else if (endpoint === "user-archive") {
     const userArchiveMutation = useMutation<AxiosResponse, AxiosError, string>(
       (url: string) => getUserArchive(url),
       {
-        onSuccess: (res) => console.log(res),
+        // onSuccess: ({ data }) => {
+        //   let myWindow = window.open("", "_blank", "resizable=yes");
+        //   myWindow!.document.write(data);
+        //   setLoading(false);
+        // },
+        onSuccess: ({ data }) => {
+          const downloadUrl = window.URL.createObjectURL(
+            new File([data], "archive.html", { type: "text/html" })
+          );
+          const link = document.createElement("a");
+          link.href = downloadUrl;
+          link.target = '_blank';
+          // link.setAttribute("download", "file.pdf"); //any other extension
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setLoading(false);
+        },
       }
     );
     formParams = {
+      type: endpoint,
       button: "Get Archive",
       placeholder: "user archive",
       parser: userUrlParser,
       mutation: userArchiveMutation,
     };
-  } else {
-    mutation = () => {
-      return;
-    };
   }
+
+  if (!formParams!) {
+    return <h3> Oops, formParams not set </h3>;
+  }
+
+  const SubmitBtn: React.FC<{kind: EnumEndpoint, text: string}> = ({kind, text}) => {
+    let kindStyle: string = "";
+    if (kind === "user-archive") {
+      kindStyle = "bg-orange-500"
+    } else if (kind === "thread") {
+      kindStyle = "bg-purple-600"
+    } 
+    return (
+      <button
+        className={`${kindStyle} p-4 rounded rounded-l-none shadow-inner font-semibold hover:bg-purple-400`}
+        type="submit"
+      >
+        {loading ? "Loading" : `${text}`}
+      </button>
+    );
+  };
 
   return (
     <Formik
@@ -92,12 +122,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
               value={values.url}
               onChange={handleChange}
             />
-            <button
-              className={`bg-purple-600 p-4 rounded rounded-l-none shadow-inner font-semibold hover:bg-purple-400`}
-              type="submit"
-            >
-              {loading ? "Loading" : `${formParams.button}`}
-            </button>
+              <SubmitBtn kind={endpoint} text={formParams.button}/>
           </div>
         </Form>
       )}
