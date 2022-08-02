@@ -103,7 +103,8 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
   }> = ({ text, disabled }) => {
     return (
       <button
-        className={`${disabled ? "bg-orange-400" : "bg-purple-600 hover:bg-purple-400" } p-4 rounded rounded-l-none font-semibold grow-0 flex items-center active:shadow-inner active:shadow-gray-800 active:bg-purple-600`}
+        className={`${disabled ? "bg-orange-400" : "bg-purple-600 hover:bg-purple-400"
+          } p-4 rounded rounded-l-none font-semibold grow-0 flex items-center active:shadow-inner active:shadow-gray-800 active:bg-purple-600`}
         type="submit"
         disabled={disabled}
       >
@@ -155,7 +156,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
       }}
     >
       {({ values, handleChange }) => (
-        <Form className="">
+        <Form className="p-4">
           <div className="m-8 flex justify-center">
             <input
               className="p-4 font-semibold text-black rounded rounded-r-none shadow shadow-black focus:outline-none focus:outline-purple-600/90 md:grow"
@@ -177,10 +178,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
                 onChange={handleChange}
               />
             )}
-            <SubmitBtn
-              text={formParams.button}
-              disabled={loading}
-            />
+            <SubmitBtn text={formParams.button} disabled={loading} />
           </div>
           {serverError && (
             <div className="bg-red-400 p-4 mx-44 my-4 rounded font-semibold text-center">
@@ -193,29 +191,82 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
   );
 };
 
+const Tab: React.FC<{ text: string; fn: any; active: boolean }> = ({
+  text,
+  fn,
+  active,
+}) => {
+  return (
+    <button
+      onClick={() => fn()}
+      className={`p-2 text-sm font-bold border-l-8 ${active
+          ? "bg-zinc-700  border-l-purple-600"
+          : "border-l-purple-600 border-opacity-20 hover:border-opacity-100 hover:border-l-purple-400 hover:bg-zinc-600"
+        } grow`}
+    >
+      {text}
+    </button>
+  );
+};
+
+const InfoPanel: React.FC<{ title: string; rows: string[] }> = ({
+  title,
+  rows,
+}) => {
+  return (
+    <div className="p-2 mt-12 m-auto rounded w-10/12 text-center text-zinc-200 font-semibold bg-zinc-600">
+      <h3>{title}</h3>
+        <ul className="text-sm font-normal text-left w-3/4 m-auto">
+          {rows.map((r, i) => (
+            <li key={i}> - {r} </li>
+          ))}
+        </ul>
+    </div>
+  );
+};
+
+const infoParams = {
+  thread: {
+    title: "Convert Thread to PDF",
+    rows: [
+      "Enter the URL for the last tweet of the thread",
+      "It might take a while",
+    ],
+  },
+  "user-archive": {
+    title: "User Archive",
+    rows: [
+      "Enter the URL for the user",
+      "By default, retrieves last 10 tweets, 0 means the whole available archive",
+      "Output is HTML",
+    ],
+  },
+};
+
 const FormSelector: React.FC = () => {
   const [endpoint, setEndPoint] = useState<EnumEndpoint>("thread");
   return (
-    <div className="m-auto p-4 md:w-[60vw] border-transparent rounded shadow-lg shadow-gray-900 ">
-      <div className="flex justify-between w-1/2 m-auto">
-        <button
-          onClick={() => setEndPoint("thread")}
-          className={`p-2 rounded ${endpoint === "thread" ? "bg-orange-500" : "bg-orange-600/80"
-            }`}
-        >
-          Thread
-        </button>
-        <button
-          onClick={() => setEndPoint("user-archive")}
-          className={`p-2 rounded ${endpoint === "user-archive" ? "bg-orange-500" : "bg-orange-600/80"
-            }`}
-        >
-          Archive
-        </button>
+    <>
+      <div className="m-auto md:w-[60vw] border-transparent rounded shadow-lg shadow-gray-900">
+        <div className="flex m-auto">
+          <Tab
+            text="Thread"
+            fn={() => setEndPoint("thread")}
+            active={endpoint === "thread"}
+          />
+          <Tab
+            text="Archive"
+            fn={() => setEndPoint("user-archive")}
+            active={endpoint === "user-archive"}
+          />
+        </div>
+        <GenericForm endpoint={endpoint} />
       </div>
-      <GenericForm endpoint={endpoint} />
-      <div className="text-center font-bold">Description here</div>
-    </div>
+      <InfoPanel
+        title={infoParams[`${endpoint}`].title}
+        rows={infoParams[`${endpoint}`].rows}
+      />
+    </>
   );
 };
 
