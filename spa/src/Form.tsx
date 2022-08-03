@@ -248,7 +248,7 @@ const infoParams = {
 };
 
 const FormSelector: React.FC = () => {
-  const [endpoint, setEndPoint] = useState<EnumEndpoint>("user-archive");
+  const [endpoint, setEndPoint] = useState<EnumEndpoint>("thread");
   return (
     <>
       <div className="m-auto md:w-[60vw] border-transparent rounded shadow-lg shadow-gray-900">
