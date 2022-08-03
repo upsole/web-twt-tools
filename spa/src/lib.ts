@@ -3,5 +3,5 @@ export const tweetUrlParser = (s: string): string => {
 }
 export const userUrlParser = (s: string): string => {
   const arr = s.split("/")
-  return arr[arr.length - 1]
+  return arr[arr.length - 1]!
 }

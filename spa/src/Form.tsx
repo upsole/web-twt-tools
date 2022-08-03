@@ -46,7 +46,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
         setServerError(
           err.response?.status! === 400
             ? "Invalid Tweet ID"
-            : err.response?.statusText!
+            : err.response?.statusText! || "Server down"
         );
         setLoading(false);
         setTimeout(() => setServerError(""), 3000);
@@ -79,7 +79,12 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
       },
       onError: (err) => {
         //@ts-ignore
-        setServerError(err.response?.data.detail as string);
+        if (err.response?.status.toString() == "0") {
+          setServerError("Server down");
+        } else {
+          //@ts-ignore
+          setServerError(err.response.data.detail);
+        }
         setLoading(false);
         setTimeout(() => setServerError(""), 3000);
       },
@@ -104,7 +109,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
     return (
       <button
         className={`${disabled ? "bg-orange-400" : "bg-purple-600 hover:bg-purple-400"
-          } p-4 rounded rounded-l-none font-semibold grow-0 flex items-center active:shadow-inner active:shadow-gray-800 active:bg-purple-600`}
+          } mt-4 md:mt-0 p-4 rounded rounded-l-none font-semibold grow-0 flex items-center active:shadow-inner active:shadow-gray-800 active:bg-purple-600`}
         type="submit"
         disabled={disabled}
       >
@@ -151,15 +156,14 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
         setLoading(true);
         setServerError("");
         formParams.mutation.mutate(parsedValues);
-        // console.log(parsedValues);
         actions.resetForm();
       }}
     >
       {({ values, handleChange }) => (
         <Form className="p-4">
-          <div className="m-8 flex justify-center">
+          <div className="m-2 flex flex-wrap justify-center md:m-8 md:flex-row">
             <input
-              className="p-4 font-semibold text-black rounded rounded-r-none shadow shadow-black focus:outline-none focus:outline-purple-600/90 md:grow"
+              className="p-4 font-semibold text-black rounded md:rounded-r-none shadow shadow-black focus:outline-none focus:outline-purple-600/90 md:grow"
               type="text"
               placeholder={`Url of ${formParams.placeholder}...`}
               name="url"
@@ -168,7 +172,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
             />
             {formParams.type === "user-archive" && (
               <input
-                className={`p-4 text-black text-xs font-semibold text-opacity-70 border-l border-l-black shadow-black focus:outline-none grow-0  md:max-w-[8vw]  focus:outline-purple-600/90 focus:border-none`}
+                className={`mt-4 md:mt-0 rounded md:rounded-none p-4 text-black text-xs font-semibold text-opacity-70 md:border-l md:border-l-black shadow-black focus:outline-none grow-0 max-w-[20vw] md:max-w-[8vw] focus:outline-purple-600/90 focus:border-none`}
                 type="number"
                 min={0}
                 max={200}
@@ -199,10 +203,10 @@ const Tab: React.FC<{ text: string; fn: any; active: boolean }> = ({
   return (
     <button
       onClick={() => fn()}
-      className={`p-2 text-sm font-bold border-l-8 ${active
-          ? "bg-zinc-700  border-l-purple-600"
-          : "border-l-purple-600 border-opacity-20 hover:border-opacity-100 hover:border-l-purple-400 hover:bg-zinc-600"
-        } grow`}
+      className={`p-2 text-sm font-bold border-l-8 grow ${active
+        ? "bg-zinc-700  border-l-purple-600"
+        : "border-l-purple-600 border-opacity-20 hover:border-opacity-100 hover:border-l-purple-400 hover:bg-zinc-600"
+        } `}
     >
       {text}
     </button>
@@ -216,11 +220,11 @@ const InfoPanel: React.FC<{ title: string; rows: string[] }> = ({
   return (
     <div className="p-2 mt-12 m-auto rounded w-10/12 text-center text-zinc-200 font-semibold bg-zinc-600">
       <h3>{title}</h3>
-        <ul className="text-sm font-normal text-left w-3/4 m-auto">
-          {rows.map((r, i) => (
-            <li key={i}> - {r} </li>
-          ))}
-        </ul>
+      <ul className="text-sm font-normal text-left w-3/4 m-auto">
+        {rows.map((r, i) => (
+          <li key={i}> - {r} </li>
+        ))}
+      </ul>
     </div>
   );
 };
@@ -244,7 +248,7 @@ const infoParams = {
 };
 
 const FormSelector: React.FC = () => {
-  const [endpoint, setEndPoint] = useState<EnumEndpoint>("thread");
+  const [endpoint, setEndPoint] = useState<EnumEndpoint>("user-archive");
   return (
     <>
       <div className="m-auto md:w-[60vw] border-transparent rounded shadow-lg shadow-gray-900">
