@@ -1,5 +1,5 @@
 import { Form, Formik } from "formik";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, UseMutationResult } from "@tanstack/react-query";
 import { getUserArchive, getThreadPDF } from "./data";
 import { tweetUrlParser, userUrlParser } from "./lib";
@@ -19,6 +19,34 @@ type GenericFormParams = {
 interface GenericForm {
   endpoint: EnumEndpoint;
 }
+
+const ProcessInfo = () => {
+  const [infoMsg, setInfoMsg] = useState("");
+  useEffect(() => {
+    setInfoMsg(infoArray[id] as string);
+    setInterval(() => {
+      id++;
+      if (id % infoArray.length == 0) {
+        id = 0;
+      }
+      setInfoMsg(infoArray[id] as string);
+    }, 2500);
+  }, []);
+  const infoArray = [
+    "Your request is being processed.",
+    "This might take a while...",
+    "Hold on",
+  ];
+  let id = 0;
+
+  return (
+    <div className="bg-orange-400 p-4 mx-44 my-4 rounded font-semibold text-center">
+      <p className="animate-pulse">
+        {infoMsg}
+      </p>
+    </div>
+  );
+};
 
 const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
   const [loading, setLoading] = useState<boolean>();
@@ -175,7 +203,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
                 className={`mt-4 md:mt-0 rounded md:rounded-none p-4 text-black text-xs font-semibold text-opacity-70 md:border-l md:border-l-black shadow-black focus:outline-none grow-0 max-w-[20vw] md:max-w-[8vw] focus:outline-purple-600/90 focus:border-none`}
                 type="number"
                 min={0}
-                max={200}
+                max={500}
                 name="limit"
                 placeholder="Limit (defaults to 10 posts)"
                 value={values.limit}
@@ -189,6 +217,8 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
               {serverError}
             </div>
           )}
+
+          {loading && <ProcessInfo />}
         </Form>
       )}
     </Formik>
@@ -204,8 +234,8 @@ const Tab: React.FC<{ text: string; fn: any; active: boolean }> = ({
     <button
       onClick={() => fn()}
       className={`p-2 text-sm font-bold border-l-8 grow ${active
-        ? "bg-zinc-700  border-l-purple-600"
-        : "border-l-purple-600 border-opacity-20 hover:border-opacity-100 hover:border-l-purple-400 hover:bg-zinc-600"
+          ? "bg-zinc-700  border-l-purple-600"
+          : "border-l-purple-600 border-opacity-20 hover:border-opacity-100 hover:border-l-purple-400 hover:bg-zinc-600"
         } `}
     >
       {text}
@@ -241,7 +271,7 @@ const infoParams = {
     title: "User Archive",
     rows: [
       "Enter the URL for the user",
-      "By default, retrieves last 10 tweets, 0 means the whole available archive",
+      "By default, retrieves last 10 tweets, 0 means the whole available archive (max: 500)",
       "Output is HTML",
     ],
   },
