@@ -1,8 +1,19 @@
 import { Form, Formik } from "formik";
 import { useState, useEffect } from "react";
-import { useMutation, UseMutationResult } from "@tanstack/react-query";
-import { getUserArchive, getThreadPDF } from "./data";
-import { tweetUrlParser, userUrlParser } from "./lib";
+import {
+  useQuery,
+  useMutation,
+  UseMutationResult,
+} from "@tanstack/react-query";
+import {
+  api_url,
+  requestUserArchive,
+  requestThread,
+  getThreadPDF,
+  getHTMLArchive,
+  checkJob,
+} from "./data";
+import { sleep, tweetUrlParser, userUrlParser } from "./lib";
 import { AxiosResponse, AxiosError } from "axios";
 
 type EnumEndpoint = "user-archive" | "thread";
@@ -41,34 +52,52 @@ const ProcessInfo = () => {
 
   return (
     <div className="bg-orange-400 p-4 mx-44 my-4 rounded font-semibold text-center">
-      <p className="animate-pulse">
-        {infoMsg}
-      </p>
+      <p className="animate-pulse">{infoMsg}</p>
     </div>
   );
 };
 
 const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
   const [loading, setLoading] = useState<boolean>();
+  // const [fileUrl, setFileUrl] = useState("");
   const [serverError, setServerError] = useState("");
+
+  const fileLoop = async (url: string, format: string) => {
+    let isPDF = format === "pdf"
+    let res = await checkJob(url);
+    // console.log(res.data);
+    while (res.data.status !== "success") {
+      console.log(res.data);
+      res = await checkJob(url);
+      await sleep(2000);
+    }
+    res = isPDF ? await getThreadPDF(res.data.downloadUrl) : res.data.downloadUrl
+
+    const downloadUrl =
+      isPDF
+        ? window.URL.createObjectURL(
+          new File([res.data], "twt_thread.pdf", { type: "application/pdf" })
+        ) : res;
+    const link = document.createElement("a");
+    link.href = downloadUrl as string;
+    if (!isPDF) {link.target = "_blank"}
+    link.setAttribute("download", isPDF ? "twt_thread.pdf" : "archive.html"); //any other extension
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setLoading(false);
+  };
+
   let formParams: GenericFormParams;
   if (endpoint === "thread") {
-    const threadPDFMutation = useMutation<
+    const requestThreadMutation = useMutation<
       AxiosResponse,
       AxiosError,
       MutateArgs
-    >((params: MutateArgs) => getThreadPDF(params.url), {
+    >((params: MutateArgs) => requestThread(params.url), {
       onSuccess: ({ data }) => {
-        const downloadUrl = window.URL.createObjectURL(
-          new File([data], "file.pdf", { type: "application/pdf" })
-        );
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.setAttribute("download", "file.pdf"); //any other extension
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setLoading(false);
+        console.log(data);
+        fileLoop(data.url, "pdf");
       },
       onError: (err) => {
         setServerError(
@@ -85,25 +114,16 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
       button: "Get Thread",
       placeholder: "last tweet in thread",
       parser: tweetUrlParser,
-      mutation: threadPDFMutation,
+      mutation: requestThreadMutation,
     };
   } else if (endpoint === "user-archive") {
     const userArchiveMutation = useMutation<
       AxiosResponse,
       AxiosError,
       MutateArgs
-    >((params: MutateArgs) => getUserArchive(params), {
+    >((params: MutateArgs) => requestUserArchive(params), {
       onSuccess: ({ data }) => {
-        const downloadUrl = window.URL.createObjectURL(
-          new File([data], "archive.html", { type: "text/html" })
-        );
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.target = "_blank";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setLoading(false);
+        fileLoop(data.url, "html")
       },
       onError: (err) => {
         //@ts-ignore

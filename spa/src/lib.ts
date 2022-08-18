@@ -5,3 +5,8 @@ export const userUrlParser = (s: string): string => {
   const arr = s.split("/")
   return arr[arr.length - 1]!
 }
+
+export const sleep = (ms = 2000):Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
