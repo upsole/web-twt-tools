@@ -1,19 +1,15 @@
 import { Form, Formik } from "formik";
 import { useState, useEffect } from "react";
 import {
-  useQuery,
   useMutation,
   UseMutationResult,
 } from "@tanstack/react-query";
 import {
-  api_url,
   requestUserArchive,
   requestThread,
-  getThreadPDF,
-  getHTMLArchive,
   checkJob,
 } from "./data";
-import { sleep, tweetUrlParser, userUrlParser } from "./lib";
+import { sleep, tweetUrlParser, userUrlParser, downloadFile } from "./lib";
 import { AxiosResponse, AxiosError } from "axios";
 
 type EnumEndpoint = "user-archive" | "thread";
@@ -57,36 +53,24 @@ const ProcessInfo = () => {
   );
 };
 
+
 const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
   const [loading, setLoading] = useState<boolean>();
-  // const [fileUrl, setFileUrl] = useState("");
   const [serverError, setServerError] = useState("");
-
-  const fileLoop = async (url: string, format: string) => {
-    let isPDF = format === "pdf"
-    let res = await checkJob(url);
-    // console.log(res.data);
-    while (res.data.status !== "success") {
-      console.log(res.data);
-      res = await checkJob(url);
-      await sleep(2000);
+  const checkJobLoop = async (url: string, format: string) => {
+    let res = await checkJob(url)
+    while (res.data.status === "pending") {
+      await sleep(2000)
+      res = await checkJob(url)
     }
-    res = isPDF ? await getThreadPDF(res.data.downloadUrl) : res.data.downloadUrl
-
-    const downloadUrl =
-      isPDF
-        ? window.URL.createObjectURL(
-          new File([res.data], "twt_thread.pdf", { type: "application/pdf" })
-        ) : res;
-    const link = document.createElement("a");
-    link.href = downloadUrl as string;
-    if (!isPDF) {link.target = "_blank"}
-    link.setAttribute("download", isPDF ? "twt_thread.pdf" : "archive.html"); //any other extension
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setLoading(false);
-  };
+    if (res.data.status === "success") {
+      await downloadFile(res.data.downloadUrl, format)
+      setLoading(false)
+    } else {
+      setServerError("Build Failed")
+      setLoading(false)
+    }
+  }
 
   let formParams: GenericFormParams;
   if (endpoint === "thread") {
@@ -95,9 +79,9 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
       AxiosError,
       MutateArgs
     >((params: MutateArgs) => requestThread(params.url), {
-      onSuccess: ({ data }) => {
-        console.log(data);
-        fileLoop(data.url, "pdf");
+      onSuccess: async ({ data }) => {
+        // checkJobMutation.mutate({ url: data.url, format: "pdf" });
+        await checkJobLoop(data.url, "pdf")
       },
       onError: (err) => {
         setServerError(
@@ -122,8 +106,8 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
       AxiosError,
       MutateArgs
     >((params: MutateArgs) => requestUserArchive(params), {
-      onSuccess: ({ data }) => {
-        fileLoop(data.url, "html")
+      onSuccess: async ({ data }) => {
+        await checkJobLoop(data.url, "html")
       },
       onError: (err) => {
         //@ts-ignore
