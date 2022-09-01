@@ -1,5 +1,5 @@
 import { Form, Formik } from "formik";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   useMutation,
   UseMutationResult,
@@ -9,7 +9,7 @@ import {
   requestThread,
   checkJob,
 } from "./data";
-import { sleep, tweetUrlParser, userUrlParser, downloadFile } from "./lib";
+import { truncateDecimals, sleep, tweetUrlParser, userUrlParser, downloadFile } from "./lib";
 import { AxiosResponse, AxiosError } from "axios";
 
 type EnumEndpoint = "user-archive" | "thread";
@@ -27,45 +27,37 @@ interface GenericForm {
   endpoint: EnumEndpoint;
 }
 
-const ProcessInfo = () => {
-  const [infoMsg, setInfoMsg] = useState("");
-  useEffect(() => {
-    setInfoMsg(infoArray[id] as string);
-    setInterval(() => {
-      id++;
-      if (id % infoArray.length == 0) {
-        id = 0;
-      }
-      setInfoMsg(infoArray[id] as string);
-    }, 2500);
-  }, []);
-  const infoArray = [
-    "Your request is being processed.",
-    "This might take a while...",
-    "Hold on",
-  ];
-  let id = 0;
 
+const ProcessInfo: React.FC<{msg: string}> = ({msg}) => {
+  /* const [infoMsg, setInfoMsg] = useState(""); */
   return (
     <div className="bg-orange-400 p-4 mx-44 my-4 rounded font-semibold text-center">
-      <p className="animate-pulse">{infoMsg}</p>
+      <p className="animate-pulse">{msg}</p>
     </div>
   );
 };
 
 
 const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
+  const [infoMsg, setInfoMsg] = useState("");
   const [loading, setLoading] = useState<boolean>();
   const [serverError, setServerError] = useState("");
   const checkJobLoop = async (url: string, format: string) => {
+    setInfoMsg("Your request is being processed")
     let res = await checkJob(url)
     while (res.data.status === "pending") {
+      if (res.data.progress === 0 && format === "pdf") {
+        setInfoMsg("Scraping thread...")
+      } else {
+        setInfoMsg(`${truncateDecimals(res.data.progress)}% completed...`)
+      }
       await sleep(2000)
       res = await checkJob(url)
     }
     if (res.data.status === "success") {
       await downloadFile(res.data.downloadUrl, format)
       setLoading(false)
+      setInfoMsg("")
     } else {
       setServerError("Build Failed")
       setLoading(false)
@@ -175,7 +167,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
   return (
     <Formik
       initialValues={{ url: "", limit: 10 }}
-      onSubmit={(values, actions) => {
+      onSubmit={(values) => {
         if (!values.url) {
           setServerError("Please provide a valid URL");
           setTimeout(() => setServerError(""), 3000);
@@ -188,7 +180,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
         setLoading(true);
         setServerError("");
         formParams.mutation.mutate(parsedValues);
-        actions.resetForm();
+        /* actions.resetForm(); */
       }}
     >
       {({ values, handleChange }) => (
@@ -207,7 +199,6 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
                 className={`mt-4 md:mt-0 rounded md:rounded-none p-4 text-black text-xs font-semibold text-opacity-70 md:border-l md:border-l-black shadow-black focus:outline-none grow-0 max-w-[20vw] md:max-w-[8vw] focus:outline-purple-600/90 focus:border-none`}
                 type="number"
                 min={0}
-                max={500}
                 name="limit"
                 placeholder="Limit (defaults to 10 posts)"
                 value={values.limit}
@@ -222,7 +213,7 @@ const GenericForm: React.FC<GenericForm> = ({ endpoint }) => {
             </div>
           )}
 
-          {loading && <ProcessInfo />}
+          {loading && infoMsg && <ProcessInfo msg={infoMsg} />}
         </Form>
       )}
     </Formik>
@@ -275,7 +266,7 @@ const infoParams = {
     title: "User Archive",
     rows: [
       "Enter the URL for the user",
-      "By default, retrieves last 10 tweets, 0 means the whole available archive (max: 500)",
+      "By default, retrieves last 10 tweets. 0 Means the whole available archive",
       "Output is HTML",
     ],
   },

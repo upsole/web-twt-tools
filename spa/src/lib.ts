@@ -1,4 +1,7 @@
 import { getThreadPDF } from "./data";
+export const truncateDecimals = (n: number) => {
+  return parseFloat(n.toFixed(2));
+}
 export const tweetUrlParser = (s: string): string => {
   return s
     .replace(/https:\/\/twitter.com\/[a-zA-Z0-9_]*\/[a-zA-Z0-9]*\//, "")
